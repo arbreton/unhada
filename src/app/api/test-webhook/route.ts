@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { getPurchaseReceiptEmail } from '@/lib/email-templates';
+import { stripeSecretKey, stripeWebhookSecret, stripeMode } from '@/lib/stripe';
 
 // MOCK DATA for testing
 const MOCK_SESSION = {
@@ -22,10 +23,10 @@ export async function GET(request: Request) {
 
     // DEBUG: Check Environment Variables (Safe Mode)
     const debugInfo = {
+        stripeMode: stripeMode,
         resendKey: process.env.RESEND_API_KEY ? `Present (${process.env.RESEND_API_KEY.substring(0, 4)}...)` : 'MISSING',
-        stripeKey: process.env.STRIPE_SECRET_KEY ? `Present (${process.env.STRIPE_SECRET_KEY.substring(0, 4)}...)` : 'MISSING',
-        webhookSecret: process.env.STRIPE_WEBHOOK_SECRET ? `Present (${process.env.STRIPE_WEBHOOK_SECRET.substring(0, 4)}...)` : 'MISSING',
-        webhookSecretLength: process.env.STRIPE_WEBHOOK_SECRET ? process.env.STRIPE_WEBHOOK_SECRET.length : 0,
+        stripeKey: stripeSecretKey ? `Present (${stripeSecretKey.substring(0, 7)}...)` : 'MISSING',
+        webhookSecret: stripeWebhookSecret ? `Present (${stripeWebhookSecret.substring(0, 7)}...)` : 'MISSING',
         nodeEnv: process.env.NODE_ENV,
     };
 

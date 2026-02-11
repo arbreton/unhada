@@ -1,9 +1,6 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    apiVersion: '2025-01-27.acacia' as any,
-});
+import { stripe } from '@/lib/stripe';
 
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);

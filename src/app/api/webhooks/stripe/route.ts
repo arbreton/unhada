@@ -4,18 +4,9 @@ import Stripe from 'stripe';
 import { Resend } from 'resend';
 import { getPurchaseReceiptEmail } from '@/lib/email-templates';
 import { getProductDownloadUrl } from '@/lib/products';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    apiVersion: '2025-01-27.acacia' as any,
-});
+import { stripe, stripeWebhookSecret, stripeMode } from '@/lib/stripe';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-
-// Dual-mode secrets
-const webhookSecretLive = process.env.STRIPE_WEBHOOK_SECRET_LIVE;
-const webhookSecretSandbox = process.env.STRIPE_WEBHOOK_SECRET_SANDBOX;
-// Fallback to legacy var if specific ones aren't set
-const webhookSecretLegacy = process.env.STRIPE_WEBHOOK_SECRET;
 
 export async function POST(req: Request) {
     const body = await req.text();
@@ -24,48 +15,16 @@ export async function POST(req: Request) {
 
     let event: Stripe.Event | undefined;
 
-    // Helper to try verification
-    const tryVerify = (secret: string) => {
-        try {
-            return stripe.webhooks.constructEvent(body, signature!, secret);
-        } catch (e) {
-            return undefined;
-        }
-    };
-
     try {
         if (!signature) {
             throw new Error('No signature found');
         }
 
-        // 1. Try Sandbox Secret (most likely for testing)
-        if (webhookSecretSandbox) {
-            event = tryVerify(webhookSecretSandbox);
+        if (!stripeWebhookSecret) {
+            throw new Error(`Missing STRIPE_WEBHOOK_SECRET for mode: ${stripeMode}`);
         }
 
-        // 2. Try Live Secret
-        if (!event && webhookSecretLive) {
-            event = tryVerify(webhookSecretLive);
-        }
-
-        // 3. Try Legacy Secret
-        if (!event && webhookSecretLegacy) {
-            event = tryVerify(webhookSecretLegacy);
-        }
-
-        // 4. Dev Mode Override (if NO secrets are set locally)
-        if (!event && !webhookSecretLive && !webhookSecretSandbox && !webhookSecretLegacy) {
-            console.warn('⚠️  No Webhook Secrets found. Skipping verification (DEV ONLY).');
-            // In a real scenario we'd throw, but for dev flow:
-            // We can't actually construct the event without a secret unless we mock it, 
-            // but stripe.webhooks.constructEvent needs a valid secret to parse.
-            // We will assume if we are here, we are screwed unless we catch the error below.
-            throw new Error('Missing all Webhook Secrets');
-        }
-
-        if (!event) {
-            throw new Error('Signature verification failed for all available secrets.');
-        }
+        event = stripe.webhooks.constructEvent(body, signature, stripeWebhookSecret);
 
     } catch (err: any) {
         console.error(`❌ Webhook Error: ${err.message}`);

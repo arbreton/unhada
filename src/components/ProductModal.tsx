@@ -6,8 +6,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Product } from '@/lib/products';
 import { loadStripe } from '@stripe/stripe-js';
 
-// Initialize Stripe
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+// Initialize Stripe (mode-aware)
+const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_MODE === 'sandbox'
+    ? process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY_SANDBOX!
+    : process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY_LIVE!;
+const stripePromise = loadStripe(stripePublishableKey);
 
 interface ProductModalProps {
     product: Product | null;
