@@ -133,3 +133,14 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ received: true });
 }
+
+// Diagnostic GET - verify this endpoint is reachable
+export async function GET() {
+    return NextResponse.json({
+        status: 'Webhook endpoint is live',
+        stripeMode,
+        webhookSecretPresent: !!stripeWebhookSecret,
+        webhookSecretPrefix: stripeWebhookSecret ? stripeWebhookSecret.substring(0, 10) + '...' : 'MISSING',
+        timestamp: new Date().toISOString(),
+    });
+}
