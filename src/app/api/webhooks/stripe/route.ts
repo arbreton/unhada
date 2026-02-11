@@ -31,6 +31,30 @@ export async function POST(req: Request) {
         }
     } catch (err: any) {
         console.error(`❌ Webhook Error: ${err.message}`);
+
+        // CRITICAL DEPLOYMENT FIX:
+        // Try to send an email to the admin explaining why the webhook failed.
+        // This is necessary because we cannot see Vercel logs easily.
+        try {
+            await resend.emails.send({
+                from: 'magia@unhada.life',
+                to: 'andrerbreton@gmail.com',
+                subject: '🚨 Webhook Failed: Unhada.life',
+                html: `
+                    <h1>Stripe Webhook Failed</h1>
+                    <p><strong>Error Message:</strong> ${err.message}</p>
+                    <p><strong>Common Causes:</strong></p>
+                    <ul>
+                        <li><strong>Signature Mismatch:</strong> The STRIPE_WEBHOOK_SECRET in Vercel does not match the mode (Test vs Live) of the event.</li>
+                        <li><strong>Malformed Payload:</strong> The request body was not what Stripe expects.</li>
+                    </ul>
+                    <p>Please check your Vercel Environment Variables.</p>
+                `
+            });
+        } catch (e) {
+            console.error('Failed to send error email:', e);
+        }
+
         return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 });
     }
 
