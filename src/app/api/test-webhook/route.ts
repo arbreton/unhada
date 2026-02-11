@@ -16,36 +16,62 @@ export async function GET(request: Request) {
     // This route simulates what the Stripe Webhook receives and does
     // It bypasses Stripe signature verification to allow local testing
 
-    // 1. Get query param for email (optional)
+    // 1. Get query param for email
     const { searchParams } = new URL(request.url);
-    const email = searchParams.get('email') || MOCK_SESSION.customer_details.email;
+    const email = searchParams.get('email') || 'andrerbreton@gmail.com'; // Default to verified email
+
+    // DEBUG: Check Environment Variables (Safe Mode)
+    const debugInfo = {
+        resendKey: process.env.RESEND_API_KEY ? `Present (${process.env.RESEND_API_KEY.substring(0, 4)}...)` : 'MISSING',
+        stripeKey: process.env.STRIPE_SECRET_KEY ? `Present (${process.env.STRIPE_SECRET_KEY.substring(0, 4)}...)` : 'MISSING',
+        webhookSecret: process.env.STRIPE_WEBHOOK_SECRET ? `Present (${process.env.STRIPE_WEBHOOK_SECRET.substring(0, 4)}...)` : 'MISSING',
+        webhookSecretLength: process.env.STRIPE_WEBHOOK_SECRET ? process.env.STRIPE_WEBHOOK_SECRET.length : 0,
+        nodeEnv: process.env.NODE_ENV,
+    };
+
+    console.log("🔍 Debug Info:", debugInfo);
 
     try {
-        console.log(`🧪 Testing Paid Email delivery to: ${email}`);
+        if (!process.env.RESEND_API_KEY) {
+            return NextResponse.json({
+                success: false,
+                error: 'RESEND_API_KEY is missing in environment variables.',
+                debug: debugInfo
+            }, { status: 500 });
+        }
 
-        // 2. Generate Email HTML (Simulate fetching from products.ts)
-        const products = [
-            { name: 'Carta Astral & Biohacking', link: 'https://example.com/carta-astral-biohacking.pdf' },
-            { name: 'Audio de Meditación Guiada', link: 'https://example.com/meditacion-guiada.mp3' }
-        ];
-
-        const emailHtml = getPurchaseReceiptEmail(MOCK_SESSION.customer_details.name, 'TEST-123', products);
-
-        // 3. Send via Resend
-        const data = await resend.emails.send({
-            from: 'magia@resend.dev',
+        const { data, error } = await resend.emails.send({
+            from: 'magia@unhada.life', // Try production domain
+            // from: 'onboarding@resend.dev', // Fallback if domain not verified
             to: email,
-            subject: '✨ [TEST] Tu Magia ha llegado!',
-            html: emailHtml,
+            subject: '✨ DEBUG: Test Email from Unhada.life',
+            html: `
+                <h1>Debug Success!</h1>
+                <p>Environment variables status:</p>
+                <pre>${JSON.stringify(debugInfo, null, 2)}</pre>
+                <p>If you see this, Resend is working.</p>
+            `
         });
+
+        if (error) {
+            return NextResponse.json({
+                success: false,
+                error: error,
+                debug: debugInfo
+            }, { status: 500 });
+        }
 
         return NextResponse.json({
             success: true,
             message: `Test email sent to ${email}`,
-            resendId: data.data?.id
+            resendId: data?.id,
+            debug: debugInfo
         });
-
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (err: any) {
+        return NextResponse.json({
+            success: false,
+            error: err.message,
+            debug: debugInfo
+        }, { status: 500 });
     }
 }
