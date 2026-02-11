@@ -90,7 +90,6 @@ export async function POST(req: Request) {
                     }
                 }
 
-                // Fallback if something fails (or legacy orders)
                 if (products.length === 0) {
                     products.push({ name: 'Acceso a tu Magia (Contactar Soporte)', link: 'mailto:soporte@unhada.life' });
                 }
@@ -99,16 +98,40 @@ export async function POST(req: Request) {
                 const orderNum = session.id.slice(-6).toUpperCase();
 
                 await resend.emails.send({
-                    from: 'magia@resend.dev',
+                    from: 'magia@unhada.life',
                     to: customerEmail,
                     subject: '✨ ¡Tu Magia ha llegado!',
                     html: getPurchaseReceiptEmail(customerName, orderNum, products),
                 });
                 console.log(`✅ Email sent to ${customerEmail}`);
-            } catch (emailError) {
+            } catch (emailError: any) {
                 console.error('❌ Failed to send email:', emailError);
+                // DEBUG: Email Admin on Send Failure
+                await resend.emails.send({
+                    from: 'magia@unhada.life',
+                    to: 'andrerbreton@gmail.com',
+                    subject: '🚨 CRITICAL: Failed to send Customer Email',
+                    html: `<p>Error: ${emailError.message}</p>`
+                });
             }
+        } else {
+            // DEBUG: Email Admin on Missing Customer Email
+            await resend.emails.send({
+                from: 'magia@unhada.life',
+                to: 'andrerbreton@gmail.com',
+                subject: '⚠️ Debug: Session Missing Email',
+                html: `<p>Session ID: ${session.id}</p><p>No customer_details.email found.</p>`
+            });
         }
+    } else {
+        // DEBUG: Email Admin on Ignored Event Type
+        // This validates that we ARE receiving events, just wrong ones.
+        await resend.emails.send({
+            from: 'magia@unhada.life',
+            to: 'andrerbreton@gmail.com',
+            subject: `🔎 Debug: Ignored Event (${event.type})`,
+            html: `<p>Received event: <strong>${event.type}</strong></p><p>We are only listening for 'checkout.session.completed'. Check Stripe Dashboard > Webhooks.</p>`
+        });
     }
 
     return NextResponse.json({ received: true });
